@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>پنل آشپزخانه</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Tahoma'; background: #333; color: white; padding: 20px; }
+        .order-card { background: #444; border: 2px solid #f39c12; margin-bottom: 20px; padding: 15px; border-radius: 10px; }
+        .new-order { animation: flash 1s; }
+        @keyframes flash { 0% { background-color: white; } 100% { background-color: #444; } }
+        ul { list-style: none; padding: 0; }
+        li { border-bottom: 1px solid #555; padding: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>👨‍🍳 سفارش‌های دریافتی</h1>
+    <div id="orders-list"></div>
+
+    <script>
+        const supabaseUrl = 'https://evdgfokcypawlaxgzxdg.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZGdmb2tjeXBhd2xheGd6eGRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxOTQzNTgsImV4cCI6MjA4MDc3MDM1OH0.XF2C5GeANSetMkoyVDIDFWMNvmtDU9beP70ZwGHV3M0';
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        const ordersContainer = document.getElementById('orders-list');
+
+        // تابع نمایش سفارش
+        function addOrderToPage(order) {
+            const div = document.createElement('div');
+            div.className = 'order-card new-order';
+            
+            let itemsHtml = '';
+            order.items.forEach(item => {
+                itemsHtml += `<li>${item.name} - تعداد: ${item.quantity}</li>`;
+            });
+
+            div.innerHTML = `
+                <h3>میز: ${order.table_number} | ${order.customer_name}</h3>
+                <ul>${itemsHtml}</ul>
+                <p>مجموع: ${order.total_price.toLocaleString()} تومان</p>
+                <small>${new Date(order.created_at).toLocaleTimeString()}</small>
+            `;
+            ordersContainer.prepend(div);
+        }
+
+        // 1. دریافت سفارش‌های قبلی (اختیاری)
+        async function fetchOrders() {
+            let { data: orders } = await supabase
+                .from('orders')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(10);
+            if(orders) orders.forEach(order => addOrderToPage(order));
+        }
+
+        // 2. گوش دادن به سفارش‌های جدید (Real-time)
+        supabase
+            .channel('orders')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, payload => {
+                console.log('سفارش جدید!', payload);
+                addOrderToPage(payload.new);
+                // پخش صدای زنگ (اختیاری)
+                new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play();
+            })
+            .subscribe();
+
+        fetchOrders();
+    </script>
+</body>
+</html>
