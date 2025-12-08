@@ -5,65 +5,150 @@
     <title>پنل آشپزخانه</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Tahoma'; background: #333; color: white; padding: 20px; }
-        .order-card { background: #444; border: 2px solid #f39c12; margin-bottom: 20px; padding: 15px; border-radius: 10px; }
-        .new-order { animation: flash 1s; }
-        @keyframes flash { 0% { background-color: white; } 100% { background-color: #444; } }
-        ul { list-style: none; padding: 0; }
-        li { border-bottom: 1px solid #555; padding: 5px 0; }
+        body { font-family: 'Tahoma', sans-serif; background: #2c3e50; color: white; padding: 20px; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; margin-bottom: 20px; }
+        
+        .status-box { font-size: 14px; background: rgba(0,0,0,0.3); padding: 5px 10px; border-radius: 5px; }
+        .status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: red; margin-left: 5px; }
+        .connected { background: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
+        
+        .order-card { 
+            background: #34495e; 
+            border-right: 5px solid #f1c40f; 
+            margin-bottom: 15px; 
+            padding: 15px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .order-card:hover { transform: translateX(-5px); }
+        .new-order { animation: flash 1.5s infinite alternate; border-right-color: #e74c3c; }
+        
+        @keyframes flash { from { background-color: #34495e; } to { background-color: #465f75; } }
+        
+        h3 { margin: 0 0 10px 0; color: #ecf0f1; border-bottom: 1px solid #7f8c8d; padding-bottom: 5px; }
+        ul { list-style: none; padding: 0; margin: 0; }
+        li { padding: 5px 0; border-bottom: 1px dashed #7f8c8d; display: flex; justify-content: space-between; }
+        li:last-child { border-bottom: none; }
+        .total { margin-top: 10px; font-weight: bold; color: #f1c40f; text-align: left; }
+        .time { font-size: 0.8em; color: #bdc3c7; float: left; }
     </style>
 </head>
 <body>
-    <h1>👨‍🍳 سفارش‌های دریافتی</h1>
-    <div id="orders-list"></div>
+    <header>
+        <h1>👨‍🍳 لیست سفارشات زنده</h1>
+        <div class="status-box">
+            وضعیت اتصال: <span id="status-dot" class="status-indicator"></span>
+            <span id="status-text">در حال اتصال...</span>
+        </div>
+    </header>
+
+    <div id="orders-list">
+        <p style="text-align: center; color: #95a5a6;">منتظر سفارش...</p>
+    </div>
 
     <script>
+        // ============================================
+        // ⚠️ مهم: اطلاعات زیر را حتماً جایگزین کنید ⚠️
+        // ============================================
         const supabaseUrl = 'https://evdgfokcypawlaxgzxdg.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZGdmb2tjeXBhd2xheGd6eGRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxOTQzNTgsImV4cCI6MjA4MDc3MDM1OH0.XF2C5GeANSetMkoyVDIDFWMNvmtDU9beP70ZwGHV3M0';
+        
+        // ایجاد اتصال
         const supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
         const ordersContainer = document.getElementById('orders-list');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
 
-        // تابع نمایش سفارش
-        function addOrderToPage(order) {
-            const div = document.createElement('div');
-            div.className = 'order-card new-order';
-            
-            let itemsHtml = '';
-            order.items.forEach(item => {
-                itemsHtml += `<li>${item.name} - تعداد: ${item.quantity}</li>`;
-            });
-
-            div.innerHTML = `
-                <h3>میز: ${order.table_number} | ${order.customer_name}</h3>
-                <ul>${itemsHtml}</ul>
-                <p>مجموع: ${order.total_price.toLocaleString()} تومان</p>
-                <small>${new Date(order.created_at).toLocaleTimeString()}</small>
-            `;
-            ordersContainer.prepend(div);
+        // بررسی اتصال اولیه
+        async function checkConnection() {
+            const { data, error } = await supabase.from('orders').select('count', { count: 'exact', head: true });
+            if (!error) {
+                statusDot.classList.add('connected');
+                statusText.innerText = "متصل و آماده";
+            } else {
+                statusText.innerText = "خطا در اتصال!";
+                console.error("Connection Error:", error);
+            }
         }
 
-        // 1. دریافت سفارش‌های قبلی (اختیاری)
+        function addOrderToPage(order, isNew = false) {
+            // حذف پیام "منتظر سفارش" اگر وجود دارد
+            if (ordersContainer.innerText.includes('منتظر سفارش')) {
+                ordersContainer.innerHTML = '';
+            }
+
+            const div = document.createElement('div');
+            div.className = isNew ? 'order-card new-order' : 'order-card';
+            
+            // ساخت لیست غذاها
+            let itemsHtml = '';
+            if (Array.isArray(order.items)) {
+                order.items.forEach(item => {
+                    itemsHtml += `<li><span>${item.name}</span> <span>x${item.quantity}</span></li>`;
+                });
+            } else {
+                itemsHtml = '<li>اطلاعات غذا ناقص است</li>';
+            }
+
+            const time = new Date(order.created_at).toLocaleTimeString('fa-IR');
+
+            div.innerHTML = `
+                <h3>میز: ${order.table_number || 'نامشخص'} <span style="font-size:0.8em; font-weight:normal">(${order.customer_name})</span></h3>
+                <ul>${itemsHtml}</ul>
+                <div class="total">
+                    <span class="time">⏰ ${time}</span>
+                    مبلغ: ${order.total_price ? order.total_price.toLocaleString() : 0} تومان
+                </div>
+            `;
+            ordersContainer.prepend(div);
+            
+            if (isNew) {
+                // پخش صدا برای سفارش جدید
+                try {
+                    const audio = new Audio('http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/pause.wav');
+                    audio.play();
+                } catch(e) { console.log("Audio play failed"); }
+            }
+        }
+
+        // 1. دریافت ۱۰ سفارش آخر هنگام باز شدن صفحه
         async function fetchOrders() {
-            let { data: orders } = await supabase
+            let { data: orders, error } = await supabase
                 .from('orders')
                 .select('*')
                 .order('created_at', { ascending: false })
                 .limit(10);
-            if(orders) orders.forEach(order => addOrderToPage(order));
+            
+            if (error) console.error("Error fetching orders:", error);
+            if (orders) {
+                // لیست را برعکس می‌کنیم تا قدیمی‌ها پایین باشند و جدیدها بالا
+                orders.reverse().forEach(order => addOrderToPage(order, false));
+            }
         }
 
-        // 2. گوش دادن به سفارش‌های جدید (Real-time)
-        supabase
-            .channel('orders')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, payload => {
-                console.log('سفارش جدید!', payload);
-                addOrderToPage(payload.new);
-                // پخش صدای زنگ (اختیاری)
-                new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play();
-            })
-            .subscribe();
+        // 2. گوش دادن به تغییرات زنده (Real-time)
+        const channel = supabase
+            .channel('kitchen-monitor')
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'orders' },
+                (payload) => {
+                    console.log('سفارش جدید دریافت شد:', payload);
+                    addOrderToPage(payload.new, true);
+                }
+            )
+            .subscribe((status) => {
+                console.log("وضعیت کانال:", status);
+                if (status === 'SUBSCRIBED') {
+                    statusDot.classList.add('connected');
+                    statusText.innerText = "آنلاین (Real-time)";
+                }
+            });
 
+        // شروع برنامه
+        checkConnection();
         fetchOrders();
     </script>
 </body>
