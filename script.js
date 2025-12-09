@@ -1,6 +1,6 @@
 // --- ۱. تنظیمات اتصال به Supabase ---
-const supabaseUrl = 'YOUR_SUPABASE_URL';
-const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
+const supabaseUrl = 'https://evdgfokcypawlaxgzxdg.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZGdmb2tjeXBhd2xheGd6eGRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxOTQzNTgsImV4cCI6MjA4MDc3MDM1OH0.XF2C5GeANSetMkoyVDIDFWMNvmtDU9beP70ZwGHV3M0';
 
 let db = null;
 try {
