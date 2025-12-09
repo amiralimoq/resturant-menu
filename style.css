@@ -3,58 +3,83 @@ body {
     background-color: #f8f9fa;
     margin: 0;
     padding: 0;
-    padding-bottom: 80px; /* فضای خالی برای سبد خرید پایین */
+    padding-bottom: 80px; /* فضای خالی برای سبد خرید */
 }
 
-/* استایل مودال ورود */
+/* --- استایل مودال‌ها (پنجره‌های بازشو) --- */
 .modal {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.8);
+    background: rgba(0,0,0,0.85); /* پس‌زمینه تاریک */
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 1000;
+    backdrop-filter: blur(5px);
 }
 
 .modal-content {
     background: white;
-    padding: 30px;
+    padding: 25px;
     border-radius: 15px;
-    text-align: center;
-    width: 80%;
-    max-width: 400px;
+    text-align: right;
+    width: 85%;
+    max-width: 350px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
 }
+
+.modal-content h2 { text-align: center; margin-top: 0; color: #333; }
+.modal-content p { text-align: center; color: #666; font-size: 0.9em; }
+
+/* استایل فیلدهای ورودی */
+.input-group { margin-bottom: 15px; }
+.input-group label { display: block; margin-bottom: 5px; font-size: 14px; font-weight: bold; }
+.required { color: red; }
 
 .modal-content input {
-    width: 90%;
-    padding: 10px;
-    margin: 10px 0;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    font-family: inherit;
-}
-
-.modal-content button {
     width: 100%;
     padding: 12px;
+    box-sizing: border-box;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 16px;
+    background: #f9f9f9;
+    text-align: center;
+}
+
+.modal-content input:focus {
+    border-color: #ff6b6b;
+    outline: none;
+    background: #fff;
+}
+
+/* دکمه‌های مودال */
+.modal-content button {
+    width: 100%;
+    padding: 14px;
     background: #ff6b6b;
     color: white;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 16px;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.btn-text {
+    background: transparent !important;
+    color: #888 !important;
+    font-size: 12px !important;
+    margin-top: 5px;
+    padding: 5px !important;
 }
 
 .hidden { display: none !important; }
 
-/* استایل منو */
-header {
-    background: #333;
-    color: white;
-    padding: 15px;
-    text-align: center;
-}
+/* --- استایل منو --- */
+header { background: #333; color: white; padding: 15px; text-align: center; }
 
 .category-title {
     background: #ffeaa7;
@@ -84,11 +109,7 @@ header {
 .item-info h3 { margin: 0 0 5px 0; font-size: 16px; }
 .item-price { color: #888; font-size: 14px; }
 
-.item-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
+.item-controls { display: flex; align-items: center; gap: 10px; }
 
 .btn-qty {
     background: #eee;
@@ -102,7 +123,7 @@ header {
 
 .qty-display { font-weight: bold; min-width: 20px; text-align: center; }
 
-/* استایل سبد خرید پایین صفحه */
+/* --- استایل سبد خرید شناور --- */
 #cart-bar {
     position: fixed;
     bottom: 0;
