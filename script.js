@@ -1,113 +1,149 @@
-// --- تنظیمات Supabase ---
-// ابتدا مطمئن می‌شویم کتابخانه لود شده است
-const supabaseUrl = 'https://evdgfokcypawlaxgzxdg.supabase.co'; // آدرس خود را اینجا بگذارید
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZGdmb2tjeXBhd2xheGd6eGRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxOTQzNTgsImV4cCI6MjA4MDc3MDM1OH0.XF2C5GeANSetMkoyVDIDFWMNvmtDU9beP70ZwGHV3M0'; // کلید خود را اینجا بگذارید
+// --- ۱. تنظیمات اتصال به Supabase ---
+const supabaseUrl = 'YOUR_SUPABASE_URL';
+const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
 
 let db = null;
-
 try {
     if (typeof supabase !== 'undefined') {
         db = supabase.createClient(supabaseUrl, supabaseKey);
-        console.log("Supabase متصل شد.");
-    } else {
-        console.error("کتابخانه Supabase لود نشد. اینترنت خود را چک کنید.");
-        alert("خطا در بارگذاری سیستم. لطفاً صفحه را رفرش کنید.");
     }
-} catch (err) {
-    console.error("خطا در تنظیمات Supabase:", err);
-}
+} catch (err) { console.error("خطا در بارگذاری Supabase", err); }
 
-// --- داده‌های منو ---
-const menuData = {
-    "غذاها": {
-        "کباب‌ها": [
-            { id: 1, name: "کباب کوبیده", price: 150000 },
-            { id: 2, name: "جوجه کباب", price: 140000 }
-        ],
-        "خورشت‌ها": [
-            { id: 3, name: "قرمه سبزی", price: 120000 },
-            { id: 4, name: "قیمه بادمجان", price: 110000 }
-        ]
-    },
-    "نوشیدنی گرم": {
-        "قهوه": [
-            { id: 5, name: "اسپرسو", price: 40000 },
-            { id: 6, name: "لاته", price: 55000 }
-        ],
-        "چای": [
-            { id: 7, name: "چای سیاه", price: 20000 }
-        ]
-    },
-    "نوشیدنی سرد": {
-        "گازدار": [
-            { id: 8, name: "نوشابه قوطی", price: 25000 }
-        ],
-        "طبیعی": [
-            { id: 9, name: "آب پرتقال", price: 60000 }
-        ]
-    }
-};
-
+// --- متغیرهای سراسری ---
+let menuData = {}; // منو اینجا بارگذاری می‌شود
 let cart = {}; 
-let userInfo = null;
+let currentUser = null; 
+let currentTable = null;
 
-// --- شروع برنامه ---
-window.onload = function() {
-    console.log("برنامه شروع شد...");
-    checkLogin();
-    renderMenu();
+// --- ۲. شروع برنامه ---
+window.onload = async function() {
+    // الف) بررسی وضعیت ورود کاربر
+    checkAuth();
+    
+    // ب) دانلود منو از دیتابیس
+    await loadMenuFromDB();
 };
 
-function checkLogin() {
-    try {
-        const storedUser = localStorage.getItem('restaurant_user');
-        if (storedUser) {
-            userInfo = JSON.parse(storedUser);
-            document.getElementById('login-modal').classList.add('hidden');
-            document.getElementById('main-container').classList.remove('hidden');
-            document.getElementById('cart-bar').classList.remove('hidden');
-            
-            const infoDisplay = document.getElementById('user-info-display');
-            if(infoDisplay) {
-                infoDisplay.innerText = `${userInfo.name} | میز: ${userInfo.table}`;
-            }
-        }
-    } catch (e) {
-        console.error("خطا در خواندن اطلاعات کاربر", e);
+// --- ۳. توابع مربوط به احراز هویت ---
+function checkAuth() {
+    // آیا اطلاعات کاربر در حافظه مرورگر هست؟
+    const storedUser = localStorage.getItem('restaurant_customer_v2');
+    
+    if (storedUser) {
+        // بله، قبلاً ثبت نام کرده -> برو به انتخاب میز
+        currentUser = JSON.parse(storedUser);
+        showTableModal();
+    } else {
+        // خیر، کاربر جدید است -> نمایش فرم ثبت نام
+        document.getElementById('register-modal').classList.remove('hidden');
     }
 }
 
-// تابع متصل به دکمه ورود
-window.saveUserInfo = function() {
-    console.log("دکمه زده شد."); // برای تست
-    const nameInput = document.getElementById('name');
-    const phoneInput = document.getElementById('phone');
-    const tableInput = document.getElementById('table-num');
+// ثبت نام کاربر جدید
+window.registerUser = async function() {
+    const fname = document.getElementById('reg-fname').value.trim();
+    const lname = document.getElementById('reg-lname').value.trim();
+    const phone = document.getElementById('reg-phone').value.trim();
 
-    if (!nameInput || !phoneInput || !tableInput) {
-        console.error("المان‌های ورودی پیدا نشدند!");
+    if (!fname || !lname || !phone) {
+        alert("لطفاً تمام فیلدهای ستاره‌دار (*) را پر کنید.");
         return;
     }
 
-    const name = nameInput.value;
-    const phone = phoneInput.value;
-    const table = tableInput.value;
+    currentUser = { fname, lname, phone };
 
-    if (!name || !phone || !table) {
-        alert("لطفاً همه موارد را پر کنید.");
+    // ارسال به دیتابیس (باشگاه مشتریان)
+    if (db) {
+        // خطا را نادیده می‌گیریم (مثلاً اگر شماره تکراری بود)
+        await db.from('customers').insert([
+            { first_name: fname, last_name: lname, phone: phone }
+        ]);
+    }
+
+    // ذخیره در مرورگر مشتری
+    localStorage.setItem('restaurant_customer_v2', JSON.stringify(currentUser));
+
+    // مخفی کردن فرم ثبت نام
+    document.getElementById('register-modal').classList.add('hidden');
+    showTableModal();
+}
+
+function showTableModal() {
+    document.getElementById('table-modal').classList.remove('hidden');
+    document.getElementById('welcome-msg').innerText = `خوش آمدید، ${currentUser.fname} عزیز`;
+}
+
+// تایید شماره میز
+window.confirmTable = function() {
+    const tableNum = document.getElementById('table-num').value;
+    if (!tableNum) {
+        alert("لطفاً شماره میز را وارد کنید.");
         return;
     }
 
-    userInfo = { name, phone, table };
-    localStorage.setItem('restaurant_user', JSON.stringify(userInfo));
-    checkLogin();
+    currentTable = tableNum;
+    
+    // باز کردن منوی اصلی
+    document.getElementById('table-modal').classList.add('hidden');
+    document.getElementById('main-container').classList.remove('hidden');
+    document.getElementById('cart-bar').classList.remove('hidden');
+
+    // نمایش نام کاربر و میز در هدر
+    const infoDisplay = document.getElementById('user-info-display');
+    if(infoDisplay) {
+        infoDisplay.innerText = `${currentUser.fname} ${currentUser.lname} | میز: ${currentTable}`;
+    }
+}
+
+// خروج (پاک کردن اطلاعات از مرورگر)
+window.logout = function() {
+    if(confirm("آیا می‌خواهید با شماره دیگری وارد شوید؟")) {
+        localStorage.removeItem('restaurant_customer_v2');
+        location.reload();
+    }
+}
+
+// --- ۴. توابع مربوط به منو و دیتابیس ---
+async function loadMenuFromDB() {
+    if (!db) return;
+
+    const container = document.getElementById('menu-container');
+    container.innerHTML = '<p style="text-align:center; padding:20px;">در حال دریافت منو...</p>';
+
+    // دریافت آیتم‌های فعال از دیتابیس
+    const { data, error } = await db
+        .from('menu_items')
+        .select('*')
+        .eq('is_available', true)
+        .order('id', { ascending: true });
+
+    if (error) {
+        console.error("Error menu:", error);
+        container.innerHTML = '<p style="text-align:center; color:red;">خطا در دریافت منو</p>';
+        return;
+    }
+
+    // تبدیل لیست تخت به دسته‌بندی شده
+    const structuredMenu = {};
+    data.forEach(item => {
+        if (!structuredMenu[item.category]) structuredMenu[item.category] = {};
+        if (!structuredMenu[item.category][item.subcategory]) structuredMenu[item.category][item.subcategory] = [];
+        
+        structuredMenu[item.category][item.subcategory].push(item);
+    });
+
+    menuData = structuredMenu;
+    renderMenu();
 }
 
 function renderMenu() {
     const container = document.getElementById('menu-container');
-    if (!container) return;
-    
-    container.innerHTML = ''; // پاک کردن محتوای قبلی برای جلوگیری از تکرار
+    container.innerHTML = '';
+
+    if (Object.keys(menuData).length === 0) {
+        container.innerHTML = '<p style="text-align:center;">منو خالی است.</p>';
+        return;
+    }
 
     for (const [category, subcategories] of Object.entries(menuData)) {
         const catHeader = document.createElement('div');
@@ -131,7 +167,7 @@ function renderMenu() {
                     </div>
                     <div class="item-controls">
                         <button class="btn-qty" onclick="updateCart(${item.id}, 1)">+</button>
-                        <span id="qty-${item.id}" class="qty-display">0</span>
+                        <span id="qty-${item.id}" class="qty-display">${cart[item.id] || 0}</span>
                         <button class="btn-qty" onclick="updateCart(${item.id}, -1)">-</button>
                     </div>
                 `;
@@ -141,16 +177,16 @@ function renderMenu() {
     }
 }
 
-// توابع گلوبال برای دسترسی در HTML
+// --- ۵. توابع سبد خرید و سفارش ---
 window.updateCart = function(itemId, change) {
     if (!cart[itemId]) cart[itemId] = 0;
     cart[itemId] += change;
-
+    
     if (cart[itemId] < 0) cart[itemId] = 0;
 
     const qtyDisplay = document.getElementById(`qty-${itemId}`);
     if (qtyDisplay) qtyDisplay.innerText = cart[itemId];
-
+    
     if (cart[itemId] === 0) delete cart[itemId];
 
     calculateTotal();
@@ -161,9 +197,7 @@ function calculateTotal() {
     for (const cat in menuData) {
         for (const sub in menuData[cat]) {
             menuData[cat][sub].forEach(item => {
-                if (cart[item.id]) {
-                    total += item.price * cart[item.id];
-                }
+                if (cart[item.id]) total += item.price * cart[item.id];
             });
         }
     }
@@ -172,15 +206,8 @@ function calculateTotal() {
 }
 
 window.placeOrder = async function() {
-    if (!db) {
-        alert("ارتباط با دیتابیس برقرار نیست. لطفاً تنظیمات فایل script.js را بررسی کنید.");
-        return;
-    }
-
-    if (Object.keys(cart).length === 0) {
-        alert("سبد خرید شما خالی است!");
-        return;
-    }
+    if (!db) { alert("اتصال به دیتابیس برقرار نیست."); return; }
+    if (Object.keys(cart).length === 0) { alert("سبد خرید شما خالی است!"); return; }
 
     const orderItems = [];
     let totalPrice = 0;
@@ -200,35 +227,32 @@ window.placeOrder = async function() {
         }
     }
 
-    // تغییر وضعیت دکمه برای جلوگیری از کلیک مجدد
     const btn = document.getElementById('order-btn');
     const originalText = btn.innerText;
     btn.innerText = "در حال ارسال...";
     btn.disabled = true;
 
-    const { data, error } = await db
-        .from('orders')
-        .insert([
-            {
-                customer_name: userInfo.name,
-                customer_phone: userInfo.phone,
-                table_number: userInfo.table,
-                items: orderItems,
-                total_price: totalPrice,
-                status: 'pending'
-            }
-        ]);
+    const { error } = await db.from('orders').insert([{
+        first_name: currentUser.fname,
+        last_name: currentUser.lname,
+        customer_name: `${currentUser.fname} ${currentUser.lname}`,
+        customer_phone: currentUser.phone,
+        table_number: currentTable,
+        items: orderItems,
+        total_price: totalPrice,
+        status: 'pending'
+    }]);
 
     btn.innerText = originalText;
     btn.disabled = false;
 
     if (error) {
-        console.error('Error:', error);
+        console.error(error);
         alert("خطا در ثبت سفارش: " + error.message);
     } else {
         alert("سفارش شما با موفقیت ثبت شد!");
         cart = {};
-        document.querySelectorAll('.qty-display').forEach(el => el.innerText = '0');
+        renderMenu(); // ریست کردن عددها
         calculateTotal();
     }
 }
