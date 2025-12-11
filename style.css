@@ -121,12 +121,39 @@ header {
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: center; /* آیتم‌ها را در راستای عمودی وسط چین می‌کند */
 }
 
-.item-info h3 { margin: 0 0 5px 0; font-size: 16px; }
-.item-price { color: #888; font-size: 14px; }
-.item-controls { display: flex; align-items: center; gap: 10px; }
+/* بخش اطلاعات غذا (راست) */
+.item-info {
+    flex: 1; /* فضای خالی را پر می‌کند */
+    padding-left: 15px; /* فاصله از دکمه‌های کنترل */
+}
+
+.item-info h3 { margin: 0 0 5px 0; font-size: 16px; color: #000; }
+
+/* استایل جدید توضیحات غذا */
+.item-desc {
+    font-size: 12px;     /* فونت کوچکتر */
+    color: #7f8c8d;      /* رنگ خاکستری */
+    margin: 0 0 8px 0;   /* فاصله از پایین */
+    line-height: 1.4;    /* ارتفاع خط برای خوانایی */
+}
+
+.item-price { 
+    display: block; 
+    color: #27ae60; 
+    font-size: 14px; 
+    font-weight: bold; 
+}
+
+/* بخش دکمه‌های کنترل (چپ) */
+.item-controls { 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    flex-shrink: 0; /* جلوگیری از جمع شدن دکمه‌ها */
+}
 
 .btn-qty {
     background: #eee;
@@ -152,6 +179,7 @@ header {
     justify-content: space-between;
     align-items: center;
     box-sizing: border-box;
+    z-index: 100;
 }
 
 #order-btn {
