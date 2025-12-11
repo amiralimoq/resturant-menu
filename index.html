@@ -34,7 +34,7 @@
         </div>
     </div>
 
-    <!-- بخش ۲: مودال شماره میز (همیشه بعد از شناسایی کاربر) -->
+    <!-- بخش ۲: مودال شماره میز -->
     <div id="table-modal" class="modal hidden">
         <div class="modal-content">
             <h2>شماره میز</h2>
@@ -44,13 +44,16 @@
             <input type="number" id="table-num" placeholder="شماره میز" style="font-size: 20px; text-align: center;">
             
             <button onclick="confirmTable()">ورود به منو</button>
-            <button onclick="logout()" class="btn-text">تغییر کاربر</button>
+            <button onclick="logout()" class="btn-text">خروج از حساب کاربری</button>
         </div>
     </div>
 
     <!-- بخش ۳: صفحه اصلی منو -->
     <div id="main-container" class="hidden">
         <header>
+            <!-- دکمه تغییر میز (قابلیت جدید) -->
+            <button class="change-table-btn" onclick="changeTable()">🔄 تغییر میز</button>
+
             <h1>رستوران ما 🍽️</h1>
             <div id="user-info-display"></div>
         </header>
