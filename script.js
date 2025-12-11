@@ -10,32 +10,54 @@ try {
 } catch (err) { console.error("خطا در بارگذاری Supabase", err); }
 
 // --- متغیرهای سراسری ---
-let menuData = {}; // منو اینجا بارگذاری می‌شود
+let menuData = {}; 
 let cart = {}; 
 let currentUser = null; 
 let currentTable = null;
 
+// تنظیم زمان انقضا برای شماره میز (۱ ساعت = ۳۶۰۰۰۰۰ میلی ثانیه)
+const SESSION_TIMEOUT = 60 * 60 * 1000; 
+
 // --- ۲. شروع برنامه ---
 window.onload = async function() {
-    // الف) بررسی وضعیت ورود کاربر
-    checkAuth();
-    
-    // ب) دانلود منو از دیتابیس
-    await loadMenuFromDB();
+    checkAuth();            // بررسی وضعیت ورود
+    await loadMenuFromDB(); // دانلود منو
 };
 
-// --- ۳. توابع مربوط به احراز هویت ---
+// --- ۳. توابع احراز هویت و مدیریت نشست (Session) ---
 function checkAuth() {
-    // آیا اطلاعات کاربر در حافظه مرورگر هست؟
+    // ۱. بررسی ثبت نام اولیه (نام و موبایل)
     const storedUser = localStorage.getItem('restaurant_customer_v2');
     
     if (storedUser) {
-        // بله، قبلاً ثبت نام کرده -> برو به انتخاب میز
         currentUser = JSON.parse(storedUser);
-        showTableModal();
+        
+        // ۲. بررسی اعتبار زمانی شماره میز
+        checkTableSession();
     } else {
-        // خیر، کاربر جدید است -> نمایش فرم ثبت نام
+        // کاربر جدید -> نمایش فرم ثبت نام
         document.getElementById('register-modal').classList.remove('hidden');
+    }
+}
+
+function checkTableSession() {
+    const storedSession = localStorage.getItem('restaurant_table_session');
+
+    if (storedSession) {
+        const session = JSON.parse(storedSession);
+        const now = Date.now();
+
+        // اگر کمتر از ۱ ساعت از آخرین انتخاب میز گذشته باشد
+        if (now - session.timestamp < SESSION_TIMEOUT) {
+            currentTable = session.table;
+            showMainPage(); // ورود مستقیم به منو
+        } else {
+            // انقضای زمان -> درخواست مجدد شماره میز
+            showTableModal();
+        }
+    } else {
+        // هیچ میزی انتخاب نشده -> نمایش فرم انتخاب میز
+        showTableModal();
     }
 }
 
@@ -52,25 +74,28 @@ window.registerUser = async function() {
 
     currentUser = { fname, lname, phone };
 
-    // ارسال به دیتابیس (باشگاه مشتریان)
+    // ارسال به دیتابیس مشتریان
     if (db) {
-        // خطا را نادیده می‌گیریم (مثلاً اگر شماره تکراری بود)
         await db.from('customers').insert([
             { first_name: fname, last_name: lname, phone: phone }
         ]);
     }
 
-    // ذخیره در مرورگر مشتری
     localStorage.setItem('restaurant_customer_v2', JSON.stringify(currentUser));
-
-    // مخفی کردن فرم ثبت نام
     document.getElementById('register-modal').classList.add('hidden');
+    
+    // بعد از ثبت نام، هدایت به انتخاب میز
     showTableModal();
 }
 
 function showTableModal() {
+    document.getElementById('main-container').classList.add('hidden');
+    document.getElementById('cart-bar').classList.add('hidden');
     document.getElementById('table-modal').classList.remove('hidden');
-    document.getElementById('welcome-msg').innerText = `خوش آمدید، ${currentUser.fname} عزیز`;
+    
+    if(currentUser) {
+        document.getElementById('welcome-msg').innerText = `خوش آمدید، ${currentUser.fname} عزیز`;
+    }
 }
 
 // تایید شماره میز
@@ -83,34 +108,48 @@ window.confirmTable = function() {
 
     currentTable = tableNum;
     
-    // باز کردن منوی اصلی
+    // ذخیره میز به همراه زمان فعلی
+    const sessionData = {
+        table: tableNum,
+        timestamp: Date.now()
+    };
+    localStorage.setItem('restaurant_table_session', JSON.stringify(sessionData));
+
     document.getElementById('table-modal').classList.add('hidden');
+    showMainPage();
+}
+
+function showMainPage() {
     document.getElementById('main-container').classList.remove('hidden');
     document.getElementById('cart-bar').classList.remove('hidden');
-
-    // نمایش نام کاربر و میز در هدر
+    
     const infoDisplay = document.getElementById('user-info-display');
     if(infoDisplay) {
         infoDisplay.innerText = `${currentUser.fname} ${currentUser.lname} | میز: ${currentTable}`;
     }
 }
 
-// خروج (پاک کردن اطلاعات از مرورگر)
+// تغییر میز (دکمه بالای صفحه)
+window.changeTable = function() {
+    showTableModal();
+    document.getElementById('table-num').value = ''; // پاک کردن ورودی قبلی
+}
+
+// خروج کامل
 window.logout = function() {
-    if(confirm("آیا می‌خواهید با شماره دیگری وارد شوید؟")) {
+    if(confirm("آیا می‌خواهید با نام و شماره دیگری وارد شوید؟")) {
         localStorage.removeItem('restaurant_customer_v2');
+        localStorage.removeItem('restaurant_table_session');
         location.reload();
     }
 }
 
-// --- ۴. توابع مربوط به منو و دیتابیس ---
+// --- ۴. توابع منو و دیتابیس ---
 async function loadMenuFromDB() {
     if (!db) return;
-
     const container = document.getElementById('menu-container');
     container.innerHTML = '<p style="text-align:center; padding:20px;">در حال دریافت منو...</p>';
 
-    // دریافت آیتم‌های فعال از دیتابیس
     const { data, error } = await db
         .from('menu_items')
         .select('*')
@@ -118,17 +157,15 @@ async function loadMenuFromDB() {
         .order('id', { ascending: true });
 
     if (error) {
-        console.error("Error menu:", error);
+        console.error("Error loading menu:", error);
         container.innerHTML = '<p style="text-align:center; color:red;">خطا در دریافت منو</p>';
         return;
     }
 
-    // تبدیل لیست تخت به دسته‌بندی شده
     const structuredMenu = {};
     data.forEach(item => {
         if (!structuredMenu[item.category]) structuredMenu[item.category] = {};
         if (!structuredMenu[item.category][item.subcategory]) structuredMenu[item.category][item.subcategory] = [];
-        
         structuredMenu[item.category][item.subcategory].push(item);
     });
 
@@ -177,7 +214,7 @@ function renderMenu() {
     }
 }
 
-// --- ۵. توابع سبد خرید و سفارش ---
+// --- ۵. توابع سبد خرید ---
 window.updateCart = function(itemId, change) {
     if (!cart[itemId]) cart[itemId] = 0;
     cart[itemId] += change;
@@ -206,8 +243,8 @@ function calculateTotal() {
 }
 
 window.placeOrder = async function() {
-    if (!db) { alert("اتصال به دیتابیس برقرار نیست."); return; }
-    if (Object.keys(cart).length === 0) { alert("سبد خرید شما خالی است!"); return; }
+    if (!db) { alert("اتصال برقرار نیست."); return; }
+    if (Object.keys(cart).length === 0) { alert("سبد خرید خالی است!"); return; }
 
     const orderItems = [];
     let totalPrice = 0;
@@ -229,7 +266,7 @@ window.placeOrder = async function() {
 
     const btn = document.getElementById('order-btn');
     const originalText = btn.innerText;
-    btn.innerText = "در حال ارسال...";
+    btn.innerText = "⏳ در حال ارسال...";
     btn.disabled = true;
 
     const { error } = await db.from('orders').insert([{
@@ -247,7 +284,6 @@ window.placeOrder = async function() {
     btn.disabled = false;
 
     if (error) {
-        console.error(error);
         alert("خطا در ثبت سفارش: " + error.message);
     } else {
         alert("سفارش شما با موفقیت ثبت شد!");
