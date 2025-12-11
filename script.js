@@ -18,24 +18,17 @@ const SESSION_TIMEOUT = 60 * 60 * 1000; // ۱ ساعت
 
 // --- ۲. شروع برنامه ---
 window.onload = async function() {
-    // ابتدا وضعیت کاربر را چک می‌کنیم و UI را تنظیم می‌کنیم
     checkAuth();
-    
-    // سپس (و یا همزمان) منو را دانلود می‌کنیم
     await loadMenuFromDB();
 };
 
 // --- ۳. توابع احراز هویت و مدیریت نشست ---
 function checkAuth() {
     const loadingScreen = document.getElementById('loading-screen');
-    
-    // ۱. بررسی ثبت نام اولیه
     const storedUser = localStorage.getItem('restaurant_customer_v2');
     
     if (storedUser) {
         currentUser = JSON.parse(storedUser);
-        
-        // ۲. بررسی اعتبار زمانی میز
         const storedSession = localStorage.getItem('restaurant_table_session');
         
         if (storedSession) {
@@ -43,27 +36,21 @@ function checkAuth() {
             const now = Date.now();
 
             if (now - session.timestamp < SESSION_TIMEOUT) {
-                // حالت A: کاربر و میز هر دو معتبر هستند -> نمایش منو
                 currentTable = session.table;
                 showMainPage();
             } else {
-                // حالت B: نشست میز منقضی شده -> نمایش انتخاب میز
                 showTableModal();
             }
         } else {
-            // حالت C: کاربر هست اما میز انتخاب نکرده -> نمایش انتخاب میز
             showTableModal();
         }
     } else {
-        // حالت D: کاربر جدید -> نمایش ثبت نام
         document.getElementById('register-modal').classList.remove('hidden');
     }
 
-    // حذف صفحه لودینگ بعد از تصمیم‌گیری
     if (loadingScreen) loadingScreen.style.display = 'none';
 }
 
-// ثبت نام کاربر جدید
 window.registerUser = async function() {
     const fname = document.getElementById('reg-fname').value.trim();
     const lname = document.getElementById('reg-lname').value.trim();
@@ -77,27 +64,21 @@ window.registerUser = async function() {
     currentUser = { fname, lname, phone };
 
     if (db) {
+        // تلاش برای ذخیره (اگر تکراری باشد، خطا می‌دهد که نادیده می‌گیریم)
         await db.from('customers').insert([
             { first_name: fname, last_name: lname, phone: phone }
         ]);
     }
 
     localStorage.setItem('restaurant_customer_v2', JSON.stringify(currentUser));
-    
-    // مخفی کردن مودال ثبت نام
     document.getElementById('register-modal').classList.add('hidden');
-    
-    // رفتن به مرحله بعدی (انتخاب میز)
     showTableModal();
 }
 
 function showTableModal() {
-    // اطمینان از مخفی بودن سایر بخش‌ها
     document.getElementById('main-container').classList.add('hidden');
     document.getElementById('cart-bar').classList.add('hidden');
     document.getElementById('register-modal').classList.add('hidden');
-    
-    // نمایش مودال میز
     document.getElementById('table-modal').classList.remove('hidden');
     
     if(currentUser) {
@@ -127,7 +108,6 @@ window.confirmTable = function() {
 function showMainPage() {
     document.getElementById('register-modal').classList.add('hidden');
     document.getElementById('table-modal').classList.add('hidden');
-    
     document.getElementById('main-container').classList.remove('hidden');
     document.getElementById('cart-bar').classList.remove('hidden');
     
@@ -154,9 +134,9 @@ window.logout = function() {
 async function loadMenuFromDB() {
     if (!db) return;
     const container = document.getElementById('menu-container');
-    // لودینگ داخلی برای کادر منو
     container.innerHTML = '<p style="text-align:center; padding:20px;">در حال دریافت منو...</p>';
 
+    // دریافت توضیحات (description) همراه سایر فیلدها
     const { data, error } = await db
         .from('menu_items')
         .select('*')
@@ -202,11 +182,17 @@ function renderMenu() {
             container.appendChild(subHeader);
 
             items.forEach(item => {
+                // بررسی اینکه آیا توضیحاتی وجود دارد یا خیر
+                const descriptionHtml = item.description 
+                    ? `<p class="item-desc">${item.description}</p>` 
+                    : '';
+
                 const itemEl = document.createElement('div');
                 itemEl.className = 'item-card';
                 itemEl.innerHTML = `
                     <div class="item-info">
                         <h3>${item.name}</h3>
+                        ${descriptionHtml}
                         <span class="item-price">${item.price.toLocaleString()} تومان</span>
                     </div>
                     <div class="item-controls">
@@ -295,8 +281,7 @@ window.placeOrder = async function() {
     } else {
         alert("سفارش شما با موفقیت ثبت شد!");
         cart = {};
-        renderMenu(); // ریست کردن عددها
+        renderMenu(); 
         calculateTotal();
     }
 }
-
