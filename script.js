@@ -14,51 +14,53 @@ let menuData = {};
 let cart = {}; 
 let currentUser = null; 
 let currentTable = null;
-
-// تنظیم زمان انقضا برای شماره میز (۱ ساعت = ۳۶۰۰۰۰۰ میلی ثانیه)
-const SESSION_TIMEOUT = 60 * 60 * 1000; 
+const SESSION_TIMEOUT = 60 * 60 * 1000; // ۱ ساعت
 
 // --- ۲. شروع برنامه ---
 window.onload = async function() {
-    checkAuth();            // بررسی وضعیت ورود
-    await loadMenuFromDB(); // دانلود منو
+    // ابتدا وضعیت کاربر را چک می‌کنیم و UI را تنظیم می‌کنیم
+    checkAuth();
+    
+    // سپس (و یا همزمان) منو را دانلود می‌کنیم
+    await loadMenuFromDB();
 };
 
-// --- ۳. توابع احراز هویت و مدیریت نشست (Session) ---
+// --- ۳. توابع احراز هویت و مدیریت نشست ---
 function checkAuth() {
-    // ۱. بررسی ثبت نام اولیه (نام و موبایل)
+    const loadingScreen = document.getElementById('loading-screen');
+    
+    // ۱. بررسی ثبت نام اولیه
     const storedUser = localStorage.getItem('restaurant_customer_v2');
     
     if (storedUser) {
         currentUser = JSON.parse(storedUser);
         
-        // ۲. بررسی اعتبار زمانی شماره میز
-        checkTableSession();
-    } else {
-        // کاربر جدید -> نمایش فرم ثبت نام
-        document.getElementById('register-modal').classList.remove('hidden');
-    }
-}
+        // ۲. بررسی اعتبار زمانی میز
+        const storedSession = localStorage.getItem('restaurant_table_session');
+        
+        if (storedSession) {
+            const session = JSON.parse(storedSession);
+            const now = Date.now();
 
-function checkTableSession() {
-    const storedSession = localStorage.getItem('restaurant_table_session');
-
-    if (storedSession) {
-        const session = JSON.parse(storedSession);
-        const now = Date.now();
-
-        // اگر کمتر از ۱ ساعت از آخرین انتخاب میز گذشته باشد
-        if (now - session.timestamp < SESSION_TIMEOUT) {
-            currentTable = session.table;
-            showMainPage(); // ورود مستقیم به منو
+            if (now - session.timestamp < SESSION_TIMEOUT) {
+                // حالت A: کاربر و میز هر دو معتبر هستند -> نمایش منو
+                currentTable = session.table;
+                showMainPage();
+            } else {
+                // حالت B: نشست میز منقضی شده -> نمایش انتخاب میز
+                showTableModal();
+            }
         } else {
-            // انقضای زمان -> درخواست مجدد شماره میز
+            // حالت C: کاربر هست اما میز انتخاب نکرده -> نمایش انتخاب میز
             showTableModal();
         }
     } else {
-        // هیچ میزی انتخاب نشده -> نمایش فرم انتخاب میز
-        showTableModal();
+        // حالت D: کاربر جدید -> نمایش ثبت نام
+        document.getElementById('register-modal').classList.remove('hidden');
     }
+
+    // حذف صفحه لودینگ بعد از تصمیم‌گیری
+    if (loadingScreen) loadingScreen.style.display = 'none';
 }
 
 // ثبت نام کاربر جدید
@@ -74,7 +76,6 @@ window.registerUser = async function() {
 
     currentUser = { fname, lname, phone };
 
-    // ارسال به دیتابیس مشتریان
     if (db) {
         await db.from('customers').insert([
             { first_name: fname, last_name: lname, phone: phone }
@@ -82,15 +83,21 @@ window.registerUser = async function() {
     }
 
     localStorage.setItem('restaurant_customer_v2', JSON.stringify(currentUser));
+    
+    // مخفی کردن مودال ثبت نام
     document.getElementById('register-modal').classList.add('hidden');
     
-    // بعد از ثبت نام، هدایت به انتخاب میز
+    // رفتن به مرحله بعدی (انتخاب میز)
     showTableModal();
 }
 
 function showTableModal() {
+    // اطمینان از مخفی بودن سایر بخش‌ها
     document.getElementById('main-container').classList.add('hidden');
     document.getElementById('cart-bar').classList.add('hidden');
+    document.getElementById('register-modal').classList.add('hidden');
+    
+    // نمایش مودال میز
     document.getElementById('table-modal').classList.remove('hidden');
     
     if(currentUser) {
@@ -98,7 +105,6 @@ function showTableModal() {
     }
 }
 
-// تایید شماره میز
 window.confirmTable = function() {
     const tableNum = document.getElementById('table-num').value;
     if (!tableNum) {
@@ -108,7 +114,6 @@ window.confirmTable = function() {
 
     currentTable = tableNum;
     
-    // ذخیره میز به همراه زمان فعلی
     const sessionData = {
         table: tableNum,
         timestamp: Date.now()
@@ -120,6 +125,9 @@ window.confirmTable = function() {
 }
 
 function showMainPage() {
+    document.getElementById('register-modal').classList.add('hidden');
+    document.getElementById('table-modal').classList.add('hidden');
+    
     document.getElementById('main-container').classList.remove('hidden');
     document.getElementById('cart-bar').classList.remove('hidden');
     
@@ -129,13 +137,11 @@ function showMainPage() {
     }
 }
 
-// تغییر میز (دکمه بالای صفحه)
 window.changeTable = function() {
     showTableModal();
-    document.getElementById('table-num').value = ''; // پاک کردن ورودی قبلی
+    document.getElementById('table-num').value = '';
 }
 
-// خروج کامل
 window.logout = function() {
     if(confirm("آیا می‌خواهید با نام و شماره دیگری وارد شوید؟")) {
         localStorage.removeItem('restaurant_customer_v2');
@@ -148,6 +154,7 @@ window.logout = function() {
 async function loadMenuFromDB() {
     if (!db) return;
     const container = document.getElementById('menu-container');
+    // لودینگ داخلی برای کادر منو
     container.innerHTML = '<p style="text-align:center; padding:20px;">در حال دریافت منو...</p>';
 
     const { data, error } = await db
@@ -292,3 +299,4 @@ window.placeOrder = async function() {
         calculateTotal();
     }
 }
+
