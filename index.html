@@ -9,25 +9,31 @@
 </head>
 <body>
 
-    <!-- بخش ۱: مودال ثبت نام (فقط بار اول) -->
-    <div id="register-modal" class="modal">
+    <!-- لودینگ اولیه (برای جلوگیری از پرش صفحه) -->
+    <div id="loading-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:2000; display:flex; justify-content:center; align-items:center;">
+        <p style="font-family:'Tahoma'; color:#555;">در حال بررسی وضعیت...</p>
+    </div>
+
+    <!-- بخش ۱: مودال ثبت نام -->
+    <!-- نکته: کلاس hidden اضافه شد تا پیش‌فرض مخفی باشد -->
+    <div id="register-modal" class="modal hidden">
         <div class="modal-content">
             <h2>ثبت نام مشتری</h2>
             <p>برای ورود به منو، مشخصات خود را وارد کنید.</p>
             
             <div class="input-group">
                 <label>نام <span class="required">*</span></label>
-                <input type="text" id="reg-fname" placeholder="مثال: امیرمحمد">
+                <input type="text" id="reg-fname" placeholder="مثال: علی">
             </div>
 
             <div class="input-group">
                 <label>نام خانوادگی <span class="required">*</span></label>
-                <input type="text" id="reg-lname" placeholder="مثال: مقیمی">
+                <input type="text" id="reg-lname" placeholder="مثال: محمدی">
             </div>
 
             <div class="input-group">
                 <label>شماره تماس <span class="required">*</span></label>
-                <input type="tel" id="reg-phone" placeholder="09128589508">
+                <input type="tel" id="reg-phone" placeholder="0912...">
             </div>
 
             <button onclick="registerUser()">ثبت و ادامه</button>
@@ -51,9 +57,7 @@
     <!-- بخش ۳: صفحه اصلی منو -->
     <div id="main-container" class="hidden">
         <header>
-            <!-- دکمه تغییر میز (قابلیت جدید) -->
             <button class="change-table-btn" onclick="changeTable()">🔄 تغییر میز</button>
-
             <h1>رستوران ما 🍽️</h1>
             <div id="user-info-display"></div>
         </header>
