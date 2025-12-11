@@ -3,7 +3,7 @@ body {
     background-color: #f8f9fa;
     margin: 0;
     padding: 0;
-    padding-bottom: 80px; /* فضای خالی برای سبد خرید */
+    padding-bottom: 80px;
 }
 
 /* --- استایل مودال‌ها --- */
@@ -31,7 +31,6 @@ body {
 .modal-content h2 { text-align: center; margin-top: 0; color: #333; }
 .modal-content p { text-align: center; color: #666; font-size: 0.9em; }
 
-/* استایل فیلدها */
 .input-group { margin-bottom: 15px; }
 .input-group label { display: block; margin-bottom: 5px; font-size: 14px; font-weight: bold; }
 .required { color: red; }
@@ -83,10 +82,9 @@ header {
     color: white;
     padding: 15px;
     text-align: center;
-    position: relative; /* برای قرارگیری دکمه تغییر میز */
+    position: relative;
 }
 
-/* دکمه تغییر میز (جدید) */
 .change-table-btn {
     position: absolute;
     top: 15px;
@@ -103,9 +101,7 @@ header {
     transition: background 0.3s;
 }
 
-.change-table-btn:hover {
-    background: #d35400;
-}
+.change-table-btn:hover { background: #d35400; }
 
 .category-title {
     background: #ffeaa7;
@@ -115,11 +111,7 @@ header {
     border-right: 5px solid #fdcb6e;
 }
 
-.subcategory-title {
-    margin: 10px 20px;
-    color: #555;
-    font-size: 0.9em;
-}
+.subcategory-title { margin: 10px 20px; color: #555; font-size: 0.9em; }
 
 .item-card {
     background: white;
@@ -134,7 +126,6 @@ header {
 
 .item-info h3 { margin: 0 0 5px 0; font-size: 16px; }
 .item-price { color: #888; font-size: 14px; }
-
 .item-controls { display: flex; align-items: center; gap: 10px; }
 
 .btn-qty {
