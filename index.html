@@ -14,79 +14,108 @@
         <p style="font-family:'Tahoma'; color:#555;">در حال بارگذاری...</p>
     </div>
 
-    <!-- بخش ۱: مودال ثبت نام -->
+    <!-- مودال ثبت نام -->
     <div id="register-modal" class="modal hidden">
         <div class="modal-content">
             <h2>ثبت نام مشتری</h2>
             <p>برای ورود به منو، مشخصات خود را وارد کنید.</p>
-            
             <div class="input-group">
                 <label>نام <span class="required">*</span></label>
                 <input type="text" id="reg-fname" placeholder="مثال: علی">
             </div>
-
             <div class="input-group">
                 <label>نام خانوادگی <span class="required">*</span></label>
                 <input type="text" id="reg-lname" placeholder="مثال: محمدی">
             </div>
-
             <div class="input-group">
                 <label>شماره تماس <span class="required">*</span></label>
                 <input type="tel" id="reg-phone" placeholder="0912...">
             </div>
-
             <button onclick="registerUser()">ثبت و ادامه</button>
         </div>
     </div>
 
-    <!-- بخش ۲: مودال شماره میز -->
+    <!-- مودال شماره میز -->
     <div id="table-modal" class="modal hidden">
         <div class="modal-content">
             <h2>شماره میز</h2>
             <p class="welcome-text" id="welcome-msg">خوش آمدید</p>
             <p>لطفاً شماره میز خود را وارد کنید:</p>
-            
             <input type="number" id="table-num" placeholder="شماره میز" style="font-size: 20px; text-align: center;">
-            
             <button onclick="confirmTable()">ورود به منو</button>
             <button onclick="logout()" class="btn-text">خروج از حساب کاربری</button>
         </div>
     </div>
 
-    <!-- بخش ۳: صفحه اصلی منو -->
+    <!-- کانتینر اصلی برنامه -->
     <div id="main-container" class="hidden">
         <header>
-            <!-- دکمه تغییر میز (راست) -->
             <button class="change-table-btn" onclick="changeTable()">🔄 تغییر میز</button>
-            
-            <!-- دکمه تاریخچه سفارشات (چپ) - جدید -->
-            <button class="history-btn" onclick="openHistory()">📜 سفارشات من</button>
-
             <h1>رستوران ما 🍽️</h1>
             <div id="user-info-display"></div>
         </header>
 
-        <div id="menu-container">
-            <!-- منوها اینجا ساخته می‌شوند -->
+        <!-- صفحات برنامه (منو و سبد خرید) -->
+        <div id="app-pages">
+            
+            <!-- صفحه ۱: منو -->
+            <div id="menu-page">
+                <div id="menu-container">
+                    <!-- لیست غذاها اینجا پر می‌شود -->
+                </div>
+            </div>
+
+            <!-- صفحه ۲: سبد خرید -->
+            <div id="cart-page" class="hidden">
+                <div class="cart-header">
+                    <h2>سبد خرید شما</h2>
+                    <p style="font-size:12px; color:#777;">آیتم‌های انتخاب شده را بررسی و تایید کنید</p>
+                </div>
+
+                <div id="cart-items-list">
+                    <!-- آیتم‌های سبد خرید اینجا نمایش داده می‌شوند -->
+                </div>
+
+                <div id="cart-footer">
+                    <div class="total-row">
+                        <span>مبلغ قابل پرداخت:</span>
+                        <span id="cart-total-page">0 تومان</span>
+                    </div>
+                    <button id="order-btn" onclick="placeOrder()">تایید و ثبت نهایی سفارش</button>
+                    
+                    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+                    
+                    <!-- دکمه تاریخچه سفارشات (درون سبد خرید) -->
+                    <button class="history-btn-block" onclick="openHistory()">
+                        📜 مشاهده تاریخچه سفارشات قبلی
+                    </button>
+                </div>
+            </div>
+
         </div>
+
+        <!-- نوار ناوبری پایین (Navigation Bar) -->
+        <nav id="bottom-nav">
+            <div class="nav-item active" onclick="switchTab('menu')" id="nav-btn-menu">
+                <span class="nav-icon">🍔</span>
+                <span class="nav-text">منو</span>
+            </div>
+            <div class="nav-item" onclick="switchTab('cart')" id="nav-btn-cart">
+                <div class="badge-container">
+                    <span class="nav-icon">🛒</span>
+                    <span id="cart-badge" class="badge hidden">0</span>
+                </div>
+                <span class="nav-text">سبد خرید</span>
+            </div>
+        </nav>
     </div>
 
-    <!-- سبد خرید -->
-    <div id="cart-bar" class="hidden">
-        <div class="cart-info">
-            <span>مجموع: <span id="total-price">0</span> تومان</span>
-        </div>
-        <button id="order-btn" onclick="placeOrder()">ثبت سفارش نهایی</button>
-    </div>
-
-    <!-- بخش جدید: مودال تاریخچه سفارشات -->
+    <!-- مودال تاریخچه سفارشات -->
     <div id="history-modal" class="modal hidden">
         <div class="modal-content" style="max-height: 80%; overflow-y: auto;">
             <h2>سفارشات گذشته</h2>
-            <div id="history-list">
-                <!-- لیست سفارشات اینجا پر می‌شود -->
-            </div>
-            <button onclick="closeHistory()" style="background:#555; margin-top:15px;">بازگشت به منو</button>
+            <div id="history-list"></div>
+            <button onclick="closeHistory()" style="background:#555; margin-top:15px;">بستن</button>
         </div>
     </div>
 
