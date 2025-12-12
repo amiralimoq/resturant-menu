@@ -64,7 +64,6 @@ window.registerUser = async function() {
     currentUser = { fname, lname, phone };
 
     if (db) {
-        // تلاش برای ذخیره (اگر تکراری باشد، خطا می‌دهد که نادیده می‌گیریم)
         await db.from('customers').insert([
             { first_name: fname, last_name: lname, phone: phone }
         ]);
@@ -79,6 +78,7 @@ function showTableModal() {
     document.getElementById('main-container').classList.add('hidden');
     document.getElementById('cart-bar').classList.add('hidden');
     document.getElementById('register-modal').classList.add('hidden');
+    document.getElementById('history-modal').classList.add('hidden');
     document.getElementById('table-modal').classList.remove('hidden');
     
     if(currentUser) {
@@ -108,6 +108,7 @@ window.confirmTable = function() {
 function showMainPage() {
     document.getElementById('register-modal').classList.add('hidden');
     document.getElementById('table-modal').classList.add('hidden');
+    document.getElementById('history-modal').classList.add('hidden');
     document.getElementById('main-container').classList.remove('hidden');
     document.getElementById('cart-bar').classList.remove('hidden');
     
@@ -136,7 +137,6 @@ async function loadMenuFromDB() {
     const container = document.getElementById('menu-container');
     container.innerHTML = '<p style="text-align:center; padding:20px;">در حال دریافت منو...</p>';
 
-    // دریافت توضیحات (description) همراه سایر فیلدها
     const { data, error } = await db
         .from('menu_items')
         .select('*')
@@ -144,7 +144,6 @@ async function loadMenuFromDB() {
         .order('id', { ascending: true });
 
     if (error) {
-        console.error("Error loading menu:", error);
         container.innerHTML = '<p style="text-align:center; color:red;">خطا در دریافت منو</p>';
         return;
     }
@@ -182,7 +181,6 @@ function renderMenu() {
             container.appendChild(subHeader);
 
             items.forEach(item => {
-                // بررسی اینکه آیا توضیحاتی وجود دارد یا خیر
                 const descriptionHtml = item.description 
                     ? `<p class="item-desc">${item.description}</p>` 
                     : '';
@@ -284,4 +282,64 @@ window.placeOrder = async function() {
         renderMenu(); 
         calculateTotal();
     }
+}
+
+// --- ۶. توابع تاریخچه سفارشات (جدید) ---
+window.openHistory = async function() {
+    if (!currentUser || !currentUser.phone) {
+        alert("لطفاً ابتدا وارد شوید.");
+        return;
+    }
+
+    const modal = document.getElementById('history-modal');
+    const list = document.getElementById('history-list');
+    
+    modal.classList.remove('hidden');
+    list.innerHTML = '<p style="text-align:center; padding:10px;">در حال دریافت سوابق...</p>';
+
+    // دریافت سفارشات کاربر فعلی از دیتابیس
+    const { data, error } = await db
+        .from('orders')
+        .select('*')
+        .eq('customer_phone', currentUser.phone)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        list.innerHTML = '<p style="color:red; text-align:center;">خطا در دریافت اطلاعات</p>';
+        console.error(error);
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        list.innerHTML = '<p style="text-align:center;">شما هنوز سفارشی ثبت نکرده‌اید.</p>';
+        return;
+    }
+
+    list.innerHTML = '';
+    data.forEach(order => {
+        // تبدیل تاریخ و ساعت
+        const dateObj = new Date(order.created_at);
+        const dateStr = dateObj.toLocaleDateString('fa-IR');
+        const timeStr = dateObj.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+
+        let itemsHtml = '';
+        if (Array.isArray(order.items)) {
+            order.items.forEach(item => {
+                itemsHtml += `<li><span>${item.name}</span> <span>${item.quantity} عدد</span></li>`;
+            });
+        }
+
+        const div = document.createElement('div');
+        div.className = 'history-card';
+        div.innerHTML = `
+            <div class="history-date">📅 ${dateStr} - ⏰ ${timeStr}</div>
+            <ul class="history-items">${itemsHtml}</ul>
+            <div class="history-total">جمع کل: ${order.total_price.toLocaleString()} تومان</div>
+        `;
+        list.appendChild(div);
+    });
+}
+
+window.closeHistory = function() {
+    document.getElementById('history-modal').classList.add('hidden');
 }
