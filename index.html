@@ -56,7 +56,12 @@
     <!-- بخش ۳: صفحه اصلی منو -->
     <div id="main-container" class="hidden">
         <header>
+            <!-- دکمه تغییر میز (راست) -->
             <button class="change-table-btn" onclick="changeTable()">🔄 تغییر میز</button>
+            
+            <!-- دکمه تاریخچه سفارشات (چپ) - جدید -->
+            <button class="history-btn" onclick="openHistory()">📜 سفارشات من</button>
+
             <h1>رستوران ما 🍽️</h1>
             <div id="user-info-display"></div>
         </header>
@@ -72,6 +77,17 @@
             <span>مجموع: <span id="total-price">0</span> تومان</span>
         </div>
         <button id="order-btn" onclick="placeOrder()">ثبت سفارش نهایی</button>
+    </div>
+
+    <!-- بخش جدید: مودال تاریخچه سفارشات -->
+    <div id="history-modal" class="modal hidden">
+        <div class="modal-content" style="max-height: 80%; overflow-y: auto;">
+            <h2>سفارشات گذشته</h2>
+            <div id="history-list">
+                <!-- لیست سفارشات اینجا پر می‌شود -->
+            </div>
+            <button onclick="closeHistory()" style="background:#555; margin-top:15px;">بازگشت به منو</button>
+        </div>
     </div>
 
     <script src="script.js"></script>
