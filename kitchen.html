@@ -2,151 +2,222 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>پنل آشپزخانه</title>
+    <title>پنل آشپزخانه KDS</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Tahoma', sans-serif; background: #2c3e50; color: white; padding: 20px; }
+        body { font-family: 'Tahoma', sans-serif; background: #2c3e50; color: white; margin: 0; padding: 20px; }
+        h1 { text-align: center; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; }
         
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; margin-bottom: 20px; }
+        /* چیدمان ۳ ستونه */
+        .board { display: flex; gap: 20px; height: 85vh; overflow-x: auto; }
+        .column { flex: 1; min-width: 300px; background: rgba(0,0,0,0.2); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; }
+        .col-header { font-size: 20px; font-weight: bold; text-align: center; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
         
-        .status-box { font-size: 14px; background: rgba(0,0,0,0.3); padding: 5px 10px; border-radius: 5px; }
-        .status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: red; margin-left: 5px; }
-        .connected { background: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
-        
-        .order-card { 
-            background: #34495e; 
-            border-right: 5px solid #f1c40f; 
-            margin-bottom: 15px; 
-            padding: 15px; 
-            border-radius: 8px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
+        /* رنگ‌بندی ستون‌ها */
+        .head-new { background: #e74c3c; color: white; }
+        .head-prep { background: #f1c40f; color: black; }
+        .head-done { background: #2ecc71; color: white; }
+
+        .orders-container { flex: 1; overflow-y: auto; padding-right: 5px; }
+
+        /* کارت سفارش */
+        .order-card {
+            background: #34495e;
+            border-right: 5px solid #bdc3c7;
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
         }
-        .order-card:hover { transform: translateX(-5px); }
-        .new-order { animation: flash 1.5s infinite alternate; border-right-color: #e74c3c; }
+        .order-card:hover { background: #3e5871; }
         
-        @keyframes flash { from { background-color: #34495e; } to { background-color: #465f75; } }
+        /* هایلایت سفارش جدید (خوانده نشده) */
+        .unread {
+            border-right-color: #e74c3c;
+            background: #4a2c2c; /* زمینه کمی قرمز */
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); } 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); } }
+
+        .card-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 16px; }
+        .card-table { background: #fff; color: #333; padding: 2px 8px; border-radius: 4px; }
+        .card-time { font-size: 12px; color: #bdc3c7; margin-top: 5px; }
         
-        h3 { margin: 0 0 10px 0; color: #ecf0f1; border-bottom: 1px solid #7f8c8d; padding-bottom: 5px; }
-        ul { list-style: none; padding: 0; margin: 0; }
-        li { padding: 5px 0; border-bottom: 1px dashed #7f8c8d; display: flex; justify-content: space-between; }
-        li:last-child { border-bottom: none; }
-        .total { margin-top: 10px; font-weight: bold; color: #f1c40f; text-align: left; }
-        .time { font-size: 0.8em; color: #bdc3c7; float: left; }
+        /* جزئیات مخفی */
+        .card-details { display: none; margin-top: 15px; border-top: 1px solid #555; padding-top: 10px; }
+        .card-items li { margin-bottom: 5px; border-bottom: 1px dashed #555; padding-bottom: 5px; display: flex; justify-content: space-between; }
+        
+        .action-btn { width: 100%; padding: 10px; margin-top: 10px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-confirm { background: #f1c40f; color: black; }
+        .btn-deliver { background: #2ecc71; color: white; }
+
+        /* اسکرول بار زیبا */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #2c3e50; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
     </style>
 </head>
 <body>
-    <header>
-        <h1>👨‍🍳 لیست سفارشات زنده</h1>
-        <div class="status-box">
-            وضعیت اتصال: <span id="status-dot" class="status-indicator"></span>
-            <span id="status-text">در حال اتصال...</span>
-        </div>
-    </header>
+    <h1>👨‍🍳 مدیریت سفارشات (KDS)</h1>
+    
+    <!-- صدای زنگ -->
+    <audio id="bell-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
 
-    <div id="orders-list">
-        <p style="text-align: center; color: #95a5a6;">منتظر سفارش...</p>
+    <div class="board">
+        <!-- ستون ۱: سفارشات جدید -->
+        <div class="column">
+            <div class="col-header head-new">سفارش جدید 🔴</div>
+            <div id="col-new" class="orders-container"></div>
+        </div>
+
+        <!-- ستون ۲: در حال آماده سازی -->
+        <div class="column">
+            <div class="col-header head-prep">درحال آماده‌سازی 🍳</div>
+            <div id="col-prep" class="orders-container"></div>
+        </div>
+
+        <!-- ستون ۳: تحویل شده -->
+        <div class="column">
+            <div class="col-header head-done">تحویل شده ✅</div>
+            <div id="col-done" class="orders-container"></div>
+        </div>
     </div>
 
     <script>
-        // ============================================
-        // ⚠️ مهم: اطلاعات زیر را حتماً جایگزین کنید ⚠️
-        // ============================================
         const supabaseUrl = 'https://evdgfokcypawlaxgzxdg.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZGdmb2tjeXBhd2xheGd6eGRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxOTQzNTgsImV4cCI6MjA4MDc3MDM1OH0.XF2C5GeANSetMkoyVDIDFWMNvmtDU9beP70ZwGHV3M0';
-        
-        // ایجاد اتصال (اصلاح شده: نام متغیر به db تغییر یافت)
         const db = supabase.createClient(supabaseUrl, supabaseKey);
-        
-        const ordersContainer = document.getElementById('orders-list');
-        const statusDot = document.getElementById('status-dot');
-        const statusText = document.getElementById('status-text');
 
-        // بررسی اتصال اولیه
-        async function checkConnection() {
-            const { data, error } = await db.from('orders').select('count', { count: 'exact', head: true });
-            if (!error) {
-                statusDot.classList.add('connected');
-                statusText.innerText = "متصل و آماده";
-            } else {
-                statusText.innerText = "خطا در اتصال!";
-                console.error("Connection Error:", error);
+        // محاسبه زمان ۳ صبح امروز
+        function getShiftStartTime() {
+            const now = new Date();
+            const shiftStart = new Date(now);
+            shiftStart.setHours(3, 0, 0, 0);
+            
+            // اگر الان ساعت ۲ صبح است، یعنی شیفت ۳ صبح "دیروز" شروع شده
+            if (now.getHours() < 3) {
+                shiftStart.setDate(shiftStart.getDate() - 1);
             }
+            return shiftStart.toISOString();
         }
 
-        function addOrderToPage(order, isNew = false) {
-            if (ordersContainer.innerText.includes('منتظر سفارش')) {
-                ordersContainer.innerHTML = '';
-            }
-
-            const div = document.createElement('div');
-            div.className = isNew ? 'order-card new-order' : 'order-card';
-            
-            let itemsHtml = '';
-            if (Array.isArray(order.items)) {
-                order.items.forEach(item => {
-                    itemsHtml += `<li><span>${item.name}</span> <span>x${item.quantity}</span></li>`;
-                });
-            } else {
-                itemsHtml = '<li>اطلاعات غذا ناقص است</li>';
-            }
-
-            const time = new Date(order.created_at).toLocaleTimeString('fa-IR');
-
-            div.innerHTML = `
-                <h3>میز: ${order.table_number || 'نامشخص'} <span style="font-size:0.8em; font-weight:normal">(${order.customer_name})</span></h3>
-                <ul>${itemsHtml}</ul>
-                <div class="total">
-                    <span class="time">⏰ ${time}</span>
-                    مبلغ: ${order.total_price ? order.total_price.toLocaleString() : 0} تومان
-                </div>
-            `;
-            ordersContainer.prepend(div);
-            
-            if (isNew) {
-                try {
-                    const audio = new Audio('http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/pause.wav');
-                    audio.play();
-                } catch(e) { console.log("Audio play failed"); }
-            }
-        }
-
-        // 1. دریافت ۱۰ سفارش آخر
         async function fetchOrders() {
-            let { data: orders, error } = await db
+            // فقط سفارشات بعد از ۳ صبح امروز
+            const { data, error } = await db
                 .from('orders')
                 .select('*')
-                .order('created_at', { ascending: false })
-                .limit(10);
+                .gt('created_at', getShiftStartTime())
+                .order('created_at', { ascending: false }); // جدیدترین بالا
+
+            if (data) renderBoard(data);
+        }
+
+        function renderBoard(orders) {
+            // پاک کردن ستون‌ها
+            document.getElementById('col-new').innerHTML = '';
+            document.getElementById('col-prep').innerHTML = '';
+            document.getElementById('col-done').innerHTML = '';
+
+            orders.forEach(order => {
+                const card = createCard(order);
+                
+                if (order.status === 'pending') {
+                    document.getElementById('col-new').appendChild(card);
+                } else if (order.status === 'preparing') {
+                    document.getElementById('col-prep').appendChild(card);
+                } else if (order.status === 'delivered') {
+                    document.getElementById('col-done').appendChild(card);
+                }
+            });
+        }
+
+        function createCard(order) {
+            const div = document.createElement('div');
+            // اگر سفارش جدید است و هنوز خوانده نشده، کلاس unread اضافه کن
+            const unreadClass = (order.status === 'pending' && !order.is_read) ? 'unread' : '';
+            div.className = `order-card ${unreadClass}`;
             
-            if (error) console.error("Error fetching orders:", error);
-            if (orders) {
-                orders.reverse().forEach(order => addOrderToPage(order, false));
+            // زمان
+            const time = new Date(order.created_at).toLocaleTimeString('fa-IR', {hour:'2-digit', minute:'2-digit'});
+
+            // لیست غذاها
+            let itemsHtml = '';
+            order.items.forEach(i => itemsHtml += `<li><span>${i.name}</span> <span>x${i.quantity}</span></li>`);
+
+            // دکمه مناسب وضعیت
+            let btnHtml = '';
+            if (order.status === 'pending') {
+                btnHtml = `<button class="action-btn btn-confirm" onclick="updateStatus(${order.id}, 'preparing')">تایید و شروع پخت 🔥</button>`;
+            } else if (order.status === 'preparing') {
+                btnHtml = `<button class="action-btn btn-deliver" onclick="updateStatus(${order.id}, 'delivered')">تحویل به مشتری 🚀</button>`;
+            }
+
+            div.innerHTML = `
+                <div class="card-header" onclick="toggleDetails(this, ${order.id}, ${order.is_read})">
+                    <span>${order.customer_name}</span>
+                    <span class="card-table">میز ${order.table_number}</span>
+                </div>
+                <div class="card-time" onclick="toggleDetails(this.parentNode.querySelector('.card-header'), ${order.id}, ${order.is_read})">⏰ ${time}</div>
+                
+                <div class="card-details">
+                    <ul class="card-items">${itemsHtml}</ul>
+                    ${btnHtml}
+                </div>
+            `;
+            return div;
+        }
+
+        // باز و بسته کردن کارت + علامت زدن به عنوان خوانده شده
+        window.toggleDetails = async function(headerEl, orderId, isRead) {
+            const card = headerEl.parentNode;
+            const details = card.querySelector('.card-details');
+            
+            // تغییر نمایش
+            if (details.style.display === 'block') {
+                details.style.display = 'none';
+            } else {
+                details.style.display = 'block';
+                
+                // اگر قبلاً خوانده نشده بود، الان خوانده شود
+                if (!isRead) {
+                    card.classList.remove('unread');
+                    await db.from('orders').update({ is_read: true }).eq('id', orderId);
+                }
             }
         }
 
-        // 2. گوش دادن به تغییرات زنده (Real-time)
-        const channel = db
-            .channel('kitchen-monitor')
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'orders' },
-                (payload) => {
-                    console.log('سفارش جدید دریافت شد:', payload);
-                    addOrderToPage(payload.new, true);
+        // تغییر وضعیت (تایید / تحویل)
+        window.updateStatus = async function(id, newStatus) {
+            await db.from('orders').update({ status: newStatus }).eq('id', id);
+            // رفرش خودکار توسط لیسنر انجام می‌شود
+        }
+
+        // گوش دادن به تغییرات زنده
+        db.channel('kitchen-realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
+                
+                // اگر سفارش جدید آمد و مال امروز بود
+                if (payload.eventType === 'INSERT') {
+                    const orderTime = new Date(payload.new.created_at);
+                    const limitTime = new Date(getShiftStartTime());
+                    
+                    if (orderTime > limitTime) {
+                        document.getElementById('bell-sound').play().catch(e=>console.log(e));
+                    }
                 }
-            )
-            .subscribe((status) => {
-                console.log("وضعیت کانال:", status);
-                if (status === 'SUBSCRIBED') {
-                    statusDot.classList.add('connected');
-                    statusText.innerText = "آنلاین (Real-time)";
-                }
-            });
+                
+                // در هر تغییری (جدید یا آپدیت)، کل تخته را رفرش کن
+                fetchOrders(); 
+            })
+            .subscribe();
 
         // شروع برنامه
-        checkConnection();
         fetchOrders();
+        
+        // رفرش خودکار هر ۵ دقیقه (برای اطمینان)
+        setInterval(fetchOrders, 300000);
     </script>
 </body>
 </html>
