@@ -11,7 +11,7 @@ try {
 
 // --- متغیرهای سراسری ---
 let menuData = {}; 
-let itemMap = {}; // برای جستجوی سریع آیتم‌ها با ID
+let itemMap = {}; 
 let cart = {}; 
 let currentUser = null; 
 let currentTable = null;
@@ -35,7 +35,6 @@ function checkAuth() {
         if (storedSession) {
             const session = JSON.parse(storedSession);
             const now = Date.now();
-
             if (now - session.timestamp < SESSION_TIMEOUT) {
                 currentTable = session.table;
                 showApp();
@@ -48,7 +47,6 @@ function checkAuth() {
     } else {
         document.getElementById('register-modal').classList.remove('hidden');
     }
-
     if (loadingScreen) loadingScreen.style.display = 'none';
 }
 
@@ -57,19 +55,10 @@ window.registerUser = async function() {
     const lname = document.getElementById('reg-lname').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
 
-    if (!fname || !lname || !phone) {
-        alert("لطفاً تمام فیلدهای ستاره‌دار (*) را پر کنید.");
-        return;
-    }
-
+    if (!fname || !lname || !phone) { alert("لطفاً تمام فیلدها را پر کنید."); return; }
     currentUser = { fname, lname, phone };
 
-    if (db) {
-        await db.from('customers').insert([
-            { first_name: fname, last_name: lname, phone: phone }
-        ]);
-    }
-
+    if (db) await db.from('customers').insert([{ first_name: fname, last_name: lname, phone: phone }]);
     localStorage.setItem('restaurant_customer_v2', JSON.stringify(currentUser));
     document.getElementById('register-modal').classList.add('hidden');
     showTableModal();
@@ -84,14 +73,9 @@ function showTableModal() {
 
 window.confirmTable = function() {
     const tableNum = document.getElementById('table-num').value;
-    if (!tableNum) { alert("لطفاً شماره میز را وارد کنید."); return; }
-
+    if (!tableNum) { alert("شماره میز الزامی است."); return; }
     currentTable = tableNum;
-    localStorage.setItem('restaurant_table_session', JSON.stringify({
-        table: tableNum,
-        timestamp: Date.now()
-    }));
-
+    localStorage.setItem('restaurant_table_session', JSON.stringify({ table: tableNum, timestamp: Date.now() }));
     document.getElementById('table-modal').classList.add('hidden');
     showApp();
 }
@@ -102,9 +86,10 @@ function showApp() {
     document.getElementById('main-container').classList.remove('hidden');
     
     const infoDisplay = document.getElementById('user-info-display');
-    if(infoDisplay) infoDisplay.innerText = `${currentUser.fname} ${currentUser.lname} | میز: ${currentTable}`;
-    
-    // پیش‌فرض: تب منو باز شود
+    if(infoDisplay) {
+        // نمایش اطلاعات در گوشه بالا چپ
+        infoDisplay.innerHTML = `<span>میز: ${currentTable}</span>${currentUser.fname} ${currentUser.lname}`;
+    }
     switchTab('menu');
 }
 
@@ -112,7 +97,6 @@ window.changeTable = function() {
     showTableModal();
     document.getElementById('table-num').value = '';
 }
-
 window.logout = function() {
     if(confirm("خروج از حساب؟")) {
         localStorage.removeItem('restaurant_customer_v2');
@@ -120,14 +104,12 @@ window.logout = function() {
         location.reload();
     }
 }
+window.closeModal = function(id) { document.getElementById(id).classList.add('hidden'); }
 
-// --- ۴. مدیریت تب‌ها (جدید) ---
+// --- ۴. مدیریت تب‌ها ---
 window.switchTab = function(tabName) {
-    // تغییر رنگ دکمه‌های پایین
     document.getElementById('nav-btn-menu').classList.remove('active');
     document.getElementById('nav-btn-cart').classList.remove('active');
-    
-    // مخفی/نمایان کردن صفحات
     document.getElementById('menu-page').classList.add('hidden');
     document.getElementById('cart-page').classList.add('hidden');
     
@@ -137,39 +119,24 @@ window.switchTab = function(tabName) {
     } else if (tabName === 'cart') {
         document.getElementById('cart-page').classList.remove('hidden');
         document.getElementById('nav-btn-cart').classList.add('active');
-        renderCartPage(); // بازسازی صفحه سبد خرید
+        renderCartPage();
     }
 }
 
 // --- ۵. توابع منو ---
 async function loadMenuFromDB() {
     if (!db) return;
-    const container = document.getElementById('menu-container');
-    container.innerHTML = '<p style="text-align:center; padding:20px;">در حال دریافت منو...</p>';
-
-    const { data, error } = await db
-        .from('menu_items')
-        .select('*')
-        .eq('is_available', true)
-        .order('id', { ascending: true });
-
-    if (error) {
-        container.innerHTML = '<p style="text-align:center;">خطا در دریافت منو</p>';
-        return;
-    }
+    const { data, error } = await db.from('menu_items').select('*').eq('is_available', true).order('id', { ascending: true });
+    if (error) return;
 
     const structuredMenu = {};
-    itemMap = {}; // ریست کردن مپ
-
+    itemMap = {};
     data.forEach(item => {
-        // ذخیره در مپ برای دسترسی سریع
         itemMap[item.id] = item;
-
         if (!structuredMenu[item.category]) structuredMenu[item.category] = {};
         if (!structuredMenu[item.category][item.subcategory]) structuredMenu[item.category][item.subcategory] = [];
         structuredMenu[item.category][item.subcategory].push(item);
     });
-
     menuData = structuredMenu;
     renderMenu();
 }
@@ -177,7 +144,6 @@ async function loadMenuFromDB() {
 function renderMenu() {
     const container = document.getElementById('menu-container');
     container.innerHTML = '';
-
     for (const [category, subcategories] of Object.entries(menuData)) {
         const catHeader = document.createElement('div');
         catHeader.className = 'category-title';
@@ -218,54 +184,35 @@ window.updateCart = function(itemId, change) {
     cart[itemId] += change;
     if (cart[itemId] < 0) cart[itemId] = 0;
     if (cart[itemId] === 0) delete cart[itemId];
-
-    // آپدیت عدد در صفحه منو (اگر وجود داشت)
     const qtyDisplay = document.getElementById(`qty-${itemId}`);
     if (qtyDisplay) qtyDisplay.innerText = cart[itemId] || 0;
-
-    // آپدیت بج (عدد قرمز) روی نوار پایین
     updateCartBadge();
-
-    // اگر در صفحه سبد خرید هستیم، لیست را رفرش کن
-    if (!document.getElementById('cart-page').classList.contains('hidden')) {
-        renderCartPage();
-    }
+    if (!document.getElementById('cart-page').classList.contains('hidden')) renderCartPage();
 }
 
 function updateCartBadge() {
     const totalItems = Object.values(cart).reduce((a, b) => a + b, 0);
     const badge = document.getElementById('cart-badge');
-    if (totalItems > 0) {
-        badge.innerText = totalItems;
-        badge.classList.remove('hidden');
-    } else {
-        badge.classList.add('hidden');
-    }
+    if (totalItems > 0) { badge.innerText = totalItems; badge.classList.remove('hidden'); }
+    else { badge.classList.add('hidden'); }
 }
 
-// رندر صفحه سبد خرید (جدید)
 function renderCartPage() {
     const list = document.getElementById('cart-items-list');
     const totalEl = document.getElementById('cart-total-page');
     list.innerHTML = '';
-    
     let total = 0;
     let hasItems = false;
 
-    // پیمایش آیتم‌های سبد خرید
     for (const [id, qty] of Object.entries(cart)) {
         if (qty > 0 && itemMap[id]) {
             hasItems = true;
             const item = itemMap[id];
             total += item.price * qty;
-
             const div = document.createElement('div');
             div.className = 'item-card';
             div.innerHTML = `
-                <div class="item-info">
-                    <h3>${item.name}</h3>
-                    <span class="item-price">${(item.price * qty).toLocaleString()} تومان</span>
-                </div>
+                <div class="item-info"><h3>${item.name}</h3><span class="item-price">${(item.price * qty).toLocaleString()} تومان</span></div>
                 <div class="item-controls">
                     <button class="btn-qty" onclick="updateCart(${item.id}, 1)">+</button>
                     <span class="qty-display">${qty}</span>
@@ -275,41 +222,34 @@ function renderCartPage() {
             list.appendChild(div);
         }
     }
-
     if (!hasItems) {
-        list.innerHTML = '<div class="cart-empty-msg">سبد خرید شما خالی است 🛒</div>';
+        list.innerHTML = '<div style="text-align:center;color:#999;margin-top:50px;">سبد خرید خالی است</div>';
         document.getElementById('order-btn').disabled = true;
         document.getElementById('order-btn').style.background = '#ccc';
     } else {
         document.getElementById('order-btn').disabled = false;
         document.getElementById('order-btn').style.background = '#2ecc71';
     }
-
     totalEl.innerText = total.toLocaleString() + ' تومان';
 }
 
 window.placeOrder = async function() {
-    if (!db) { alert("اتصال برقرار نیست."); return; }
-    if (Object.keys(cart).length === 0) { alert("سبد خالی است"); return; }
+    if (!db) return;
+    if (Object.keys(cart).length === 0) return;
 
     const orderItems = [];
     let totalPrice = 0;
-
     for (const [id, qty] of Object.entries(cart)) {
         const item = itemMap[id];
         if (item && qty > 0) {
-            orderItems.push({
-                name: item.name,
-                price: item.price,
-                quantity: qty
-            });
+            orderItems.push({ name: item.name, price: item.price, quantity: qty });
             totalPrice += item.price * qty;
         }
     }
 
     const btn = document.getElementById('order-btn');
     const oldText = btn.innerText;
-    btn.innerText = "⏳ در حال ارسال...";
+    btn.innerText = "⏳ ارسال...";
     btn.disabled = true;
 
     const { error } = await db.from('orders').insert([{
@@ -320,61 +260,86 @@ window.placeOrder = async function() {
         table_number: currentTable,
         items: orderItems,
         total_price: totalPrice,
-        status: 'pending'
+        status: 'pending',
+        is_read: false
     }]);
 
     btn.innerText = oldText;
     btn.disabled = false;
 
-    if (error) {
-        alert("خطا: " + error.message);
-    } else {
-        alert("سفارش با موفقیت ثبت شد!");
+    if (error) alert("خطا: " + error.message);
+    else {
+        alert("سفارش ثبت شد!");
         cart = {};
         updateCartBadge();
-        switchTab('menu'); // بازگشت به منو
-        renderMenu(); // ریست کردن عددها
+        switchTab('menu');
+        renderMenu();
     }
 }
 
-// --- ۷. تاریخچه ---
-window.openHistory = async function() {
-    if (!currentUser) return;
-    const modal = document.getElementById('history-modal');
-    const list = document.getElementById('history-list');
+// --- ۷. توابع همون همیشگی و تاریخچه ---
+window.openFavorites = async function() {
+    const list = document.getElementById('favorites-list');
+    document.getElementById('favorites-modal').classList.remove('hidden');
+    list.innerHTML = 'در حال دریافت...';
     
-    modal.classList.remove('hidden');
-    list.innerHTML = '<p style="text-align:center;">در حال دریافت...</p>';
-
-    const { data, error } = await db
-        .from('orders')
-        .select('*')
-        .eq('customer_phone', currentUser.phone)
-        .order('created_at', { ascending: false });
-
-    if (error) { list.innerHTML = 'خطا در دریافت'; return; }
-    if (!data.length) { list.innerHTML = '<p style="text-align:center;">خالی</p>'; return; }
+    // دریافت ۱۰ سفارش آخر
+    const { data } = await db.from('orders').select('*').eq('customer_phone', currentUser.phone).order('created_at', {ascending: false}).limit(10);
+    
+    if(!data || data.length === 0) { list.innerHTML = 'سوابقی یافت نشد.'; return; }
 
     list.innerHTML = '';
     data.forEach(order => {
-        const d = new Date(order.created_at);
-        const dateStr = d.toLocaleDateString('fa-IR');
-        const timeStr = d.toLocaleTimeString('fa-IR', {hour:'2-digit', minute:'2-digit'});
-
         let itemsHtml = '';
-        order.items.forEach(i => itemsHtml += `<li><span>${i.name}</span><span>${i.quantity}</span></li>`);
-
+        order.items.forEach(i => itemsHtml += `<li>${i.name} (${i.quantity})</li>`);
         const div = document.createElement('div');
         div.className = 'history-card';
+        // دکمه سفارش دوباره
         div.innerHTML = `
-            <div class="history-date">${dateStr} | ${timeStr}</div>
+            <div class="history-date">${new Date(order.created_at).toLocaleDateString('fa-IR')}</div>
             <ul class="history-items">${itemsHtml}</ul>
-            <div class="history-total">مبلغ: ${order.total_price.toLocaleString()}</div>
+            <button class="reorder-btn" onclick='reorder(${JSON.stringify(order.items)}, ${order.total_price})'>🔄 سفارش دوباره</button>
         `;
         list.appendChild(div);
     });
 }
 
-window.closeHistory = function() {
-    document.getElementById('history-modal').classList.add('hidden');
+window.reorder = async function(items, price) {
+    if(!confirm("آیا همین سفارش دوباره برای میز " + currentTable + " ثبت شود؟")) return;
+    
+    // ثبت سفارش جدید با آیتم‌های قدیمی اما میز و زمان جدید
+    const { error } = await db.from('orders').insert([{
+        first_name: currentUser.fname,
+        last_name: currentUser.lname,
+        customer_name: `${currentUser.fname} ${currentUser.lname}`,
+        customer_phone: currentUser.phone,
+        table_number: currentTable,
+        items: items,
+        total_price: price,
+        status: 'pending',
+        is_read: false
+    }]);
+
+    if (error) alert(error.message);
+    else {
+        alert("سفارش دوباره با موفقیت ثبت شد!");
+        document.getElementById('favorites-modal').classList.add('hidden');
+    }
+}
+
+window.openHistory = async function() {
+    const list = document.getElementById('history-list');
+    document.getElementById('history-modal').classList.remove('hidden');
+    list.innerHTML = 'در حال دریافت...';
+    const { data } = await db.from('orders').select('*').eq('customer_phone', currentUser.phone).order('created_at', {ascending: false});
+    if(!data.length) { list.innerHTML = 'خالی'; return; }
+    list.innerHTML = '';
+    data.forEach(order => {
+        let itemsHtml = '';
+        order.items.forEach(i => itemsHtml += `<li>${i.name} (${i.quantity})</li>`);
+        const div = document.createElement('div');
+        div.className = 'history-card';
+        div.innerHTML = `<div class="history-date">${new Date(order.created_at).toLocaleDateString('fa-IR')} | ${order.status === 'pending' ? 'در انتظار' : order.status}</div><ul class="history-items">${itemsHtml}</ul><div class="history-total">${order.total_price.toLocaleString()}</div>`;
+        list.appendChild(div);
+    });
 }
